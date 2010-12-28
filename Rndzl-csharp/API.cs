@@ -649,7 +649,9 @@ namespace Rdnzl.Backend
 
         static void* ToPointer<T>(T container) where T : class
         {
-            return GCHandle.Alloc(container).AddrOfPinnedObject().ToPointer();
+            var handle = GCHandle.Alloc(container);
+            var addr = GCHandle.ToIntPtr(handle);
+            return addr.ToPointer();
         }
 
         #endregion

@@ -11,10 +11,7 @@ namespace Rdnzl.Backend
         void Init(object o, Type type)
         {
             FreeIfHasValue();
-            if (o != null) 
-                Handle = GCHandle.Alloc(o);
-            else
-                Handle = null;
+            _Object = o;
 
             if (Type != null)
                 _Type = type;
@@ -34,18 +31,12 @@ namespace Rdnzl.Backend
             Init(o, null);
         }
 
-
-        static DotNetContainer Init<T>(T obj)
-        {
-            return new DotNetContainer(obj, typeof(object));
-        }
-
         public object Target
         {
-            get { return Handle.Value.Target; }
+            get { return _Object; }
         }
 
-        GCHandle? Handle;
+        object _Object;
         Type _Type;
 
         public Type Type
@@ -74,11 +65,7 @@ namespace Rdnzl.Backend
 
         private void FreeIfHasValue()
         {
-            if (Handle.HasValue)
-            {
-                Handle.Value.Free();
-                Handle = null;
-            }
+            _Object = null;
         }
 
         #endregion
@@ -87,14 +74,14 @@ namespace Rdnzl.Backend
         {
             Type type = Target as Type;
             if (!type.IsByRef)
-                Init(type.MakeByRefType());
+                Init(type.MakeByRefType(), null);
         }
 
         internal void unrefContainerType()
         {
             Type type = Target as Type;
             if (type.IsByRef)
-                Init(type.GetElementType());
+                Init(type.GetElementType(), null);
         }
 
     }
