@@ -60,7 +60,9 @@
 			<Tool
 				Name="VCLinkerTool"
 				AdditionalDependencies="$(NoInherit)"
+				OutputFile="$(OutDir)\RDNZL.dll"
 				LinkIncremental="2"
+				ModuleDefinitionFile="rdnzl.def"
 				GenerateDebugInformation="true"
 				AssemblyDebug="1"
 				TargetMachine="1"
@@ -85,6 +87,7 @@
 			/>
 			<Tool
 				Name="VCPostBuildEventTool"
+				CommandLine="copy &quot;$(TargetPath)&quot;  &quot;C:\Documents and Settings\ds\rdnzl\&quot;"
 			/>
 		</Configuration>
 		<Configuration
@@ -131,7 +134,9 @@
 			<Tool
 				Name="VCLinkerTool"
 				AdditionalDependencies="$(NoInherit)"
+				OutputFile="$(OutDir)\RDNZL.dll"
 				LinkIncremental="1"
+				ModuleDefinitionFile="rdnzl.def"
 				GenerateDebugInformation="true"
 				TargetMachine="1"
 			/>
@@ -177,6 +182,10 @@
 			>
 			<File
 				RelativePath=".\AssemblyInfo.cpp"
+				>
+			</File>
+			<File
+				RelativePath=".\rdnzl.def"
 				>
 			</File>
 			<File
