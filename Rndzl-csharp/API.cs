@@ -177,7 +177,7 @@ namespace Rdnzl.Backend
             return ToPointer(new DotNetContainer(result));
         }
 
-        delegate object CallbackDelegate(int index, void* args);
+        delegate void* CallbackDelegate(int index, void* args);
 
         public static void SetFunctionPointers(IntPtr callback, IntPtr release)
         {
@@ -187,7 +187,11 @@ namespace Rdnzl.Backend
                 Marshal.GetDelegateForFunctionPointer(release, typeof(DelegateAdapter.ReleaseDelegate))
                     as DelegateAdapter.ReleaseDelegate;
             DelegateAdapter.SetFunctions(
-                (i, args) => cb_delegate(i, ToPointer(new DotNetContainer(args))),
+                (i, args) => 
+                    {
+                        var ptr = cb_delegate(i, ToPointer(new DotNetContainer(args)));
+                        return FromPointer<DotNetContainer>(ptr).Target;
+                    },
                 release_delegate);
         }
 
