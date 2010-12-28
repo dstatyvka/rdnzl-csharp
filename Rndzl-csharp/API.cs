@@ -632,8 +632,6 @@ namespace Rdnzl.Backend
 
         private static void CopyZeroTerminatedString(string source, IntPtr destination)
         {
-            System.Diagnostics.Debug.Assert(false,
-                String.Format("let's copy {0}", source));
             var type_name = Encoding.Unicode.GetBytes(source);
             Marshal.Copy(type_name, 0, destination, type_name.Length);
         }
