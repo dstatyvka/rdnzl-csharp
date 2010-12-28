@@ -93,12 +93,12 @@ namespace Rdnzl.Backend
 
         public static int getDotNetContainerObjectStringLength(void* ptr)
         {
-            return FromPointer<DotNetContainer>(ptr).ToString().Length;
+            return FromPointer<DotNetContainer>(ptr).Target.ToString().Length;
         }
 
         public static void getDotNetContainerObjectAsString(void* ptr, IntPtr s)
         {
-            CopyZeroTerminatedString(FromPointer<DotNetContainer>(ptr).ToString(), s);
+            CopyZeroTerminatedString(FromPointer<DotNetContainer>(ptr).Target.ToString(), s);
         }
 
         public static void refDotNetContainerType(void* ptr)
@@ -629,26 +629,10 @@ namespace Rdnzl.Backend
 
         private static void CopyZeroTerminatedString(string source, IntPtr destination)
         {
-            var type_name = source.ToCharArray();
+            System.Diagnostics.Debug.Assert(false,
+                String.Format("let's copy {0}", source));
+            var type_name = Encoding.Unicode.GetBytes(source);
             Marshal.Copy(type_name, 0, destination, type_name.Length);
-            switch (Marshal.SizeOf(typeof(char)))
-            {
-                case 1:
-                    Marshal.WriteByte(destination, type_name.Length, 0);
-                    break;
-                case 2:
-                    Marshal.WriteInt16(destination, type_name.Length, 0);
-                    break;
-                case 4:
-                    Marshal.WriteInt32(destination, type_name.Length, 0);
-                    break;
-                case 8:
-                    Marshal.WriteInt64(destination, type_name.Length, 0);
-                    break;
-                default:
-                    throw new SystemException(
-                        String.Format("Unsupported char length: {0}", Marshal.SizeOf(typeof(char))));
-            }
         }
 
         static T FromPointer<T>(void* ptr) where T : class
