@@ -35,7 +35,7 @@ namespace Rdnzl.Backend
             var container = FromPointer<DotNetContainer>(type);
             var result = new DotNetContainer(null, container.Target as Type);
             return ToPointer(result);
-            
+
         }
 
         public static void* makeTypeFromName(IntPtr type_name)
@@ -71,6 +71,11 @@ namespace Rdnzl.Backend
             return ToPointer(new DotNetContainer(value));
         }
 
+        public static void* makeDotNetContainerFromChar(char value)
+        {
+            return ToPointer(new DotNetContainer(value));
+        }
+
         public static void* makeDotNetContainerFromString(IntPtr value)
         {
             return ToPointer(new DotNetContainer(Marshal.PtrToStringUni(value)));
@@ -86,12 +91,12 @@ namespace Rdnzl.Backend
             CopyZeroTerminatedString(FromPointer<DotNetContainer>(ptr).Type.FullName, destination);
         }
 
-        public static int getDotNetContainerObjectStringLength(void *ptr)
+        public static int getDotNetContainerObjectStringLength(void* ptr)
         {
             return FromPointer<DotNetContainer>(ptr).ToString().Length;
         }
 
-        public static void getDotNetContainerObjectAsString(void *ptr, IntPtr s)
+        public static void getDotNetContainerObjectAsString(void* ptr, IntPtr s)
         {
             CopyZeroTerminatedString(FromPointer<DotNetContainer>(ptr).ToString(), s);
         }
@@ -128,7 +133,7 @@ namespace Rdnzl.Backend
             return (double)FromPointer<DotNetContainer>(ptr).Target;
         }
 
-        public static float getDotNetContainerSingleValue(void *ptr)
+        public static float getDotNetContainerSingleValue(void* ptr)
         {
             return (float)FromPointer<DotNetContainer>(ptr).Target;
         }
@@ -138,14 +143,33 @@ namespace Rdnzl.Backend
             var int_ptr = new IntPtr(ptr);
             var handle = GCHandle.FromIntPtr(int_ptr);
             var container = handle.Target as IDisposable;
-            if(container != null)
+            if (container != null)
                 container.Dispose();
             handle.Free();
         }
+
+        public static void* setDotNetContainerTypeFromString(IntPtr type, void* ptr)
+        {
+            return WithExceptionsCatched(() =>
+                {
+                    var container = FromPointer<DotNetContainer>(ptr);
+                    container.Type = Type.GetType(Marshal.PtrToStringUni(type), true);
+                });
+        }
+
+        public static void* setDotNetContainerTypeFromContainer(void* type, void* ptr)
+        {
+            return WithExceptionsCatched(() =>
+            {
+                var container = FromPointer<DotNetContainer>(ptr);
+                container.Type = (Type)FromPointer<DotNetContainer>(ptr).Target;
+            });
+        }
+
         #endregion
 
         #region Delegate adapter API
-        public void* buildDelegateType(IntPtr typeName, void* returnType, void* argTypes)
+        public static void* buildDelegateType(IntPtr typeName, void* returnType, void* argTypes)
         {
             var result = DelegateAdapter.Build(Marshal.PtrToStringUni(typeName),
                 (Type)FromPointer<DotNetContainer>(returnType).Target,
@@ -155,11 +179,11 @@ namespace Rdnzl.Backend
 
         delegate object CallbackDelegate(int index, void* args);
 
-        void SetFunctionPointers(IntPtr callback, IntPtr release)
+        public static void SetFunctionPointers(IntPtr callback, IntPtr release)
         {
             var cb_delegate = Marshal.GetDelegateForFunctionPointer(callback, typeof(CallbackDelegate))
                     as CallbackDelegate;
-            var release_delegate = 
+            var release_delegate =
                 Marshal.GetDelegateForFunctionPointer(release, typeof(DelegateAdapter.ReleaseDelegate))
                     as DelegateAdapter.ReleaseDelegate;
             DelegateAdapter.SetFunctions(
@@ -171,23 +195,23 @@ namespace Rdnzl.Backend
 
         #region Fields API
 
-        private static void* GetFieldValue(object instance, Type type, 
+        private static void* GetFieldValue(object instance, Type type,
             IntPtr fieldName, BindingFlags binding, string message)
         {
-           return WithExceptionsCatched(() =>
-                {
-                    var field_name = Marshal.PtrToStringUni(fieldName);
-                    var field_info = type.GetField(field_name, binding);
+            return WithExceptionsCatched(() =>
+                 {
+                     var field_name = Marshal.PtrToStringUni(fieldName);
+                     var field_info = type.GetField(field_name, binding);
 
-                    if (field_info == null)
-                        throw new Exception(String.Format("{2}: {0}->{1}",
-                            type.FullName, field_name, message));
+                     if (field_info == null)
+                         throw new Exception(String.Format("{2}: {0}->{1}",
+                             type.FullName, field_name, message));
 
-                    return field_info.GetValue(instance);
-                });
+                     return field_info.GetValue(instance);
+                 });
         }
 
-        void* getInstanceFieldValue(IntPtr fieldName, void* target)
+        public static void* getInstanceFieldValue(IntPtr fieldName, void* target)
         {
             var binding = BindingFlags.Instance | BindingFlags.Public;
             var message = "Instance field not found";
@@ -198,7 +222,7 @@ namespace Rdnzl.Backend
             return GetFieldValue(instance, type, fieldName, binding, message);
         }
 
-        void* getStaticFieldValue(IntPtr fieldName, void* targetType)
+        public static void* getStaticFieldValue(IntPtr fieldName, void* targetType)
         {
             var binding = BindingFlags.Instance | BindingFlags.Public;
             var message = "Static field not found";
@@ -211,7 +235,7 @@ namespace Rdnzl.Backend
         private static void* SetFieldValue(object instance, Type type, object newValue,
             IntPtr fieldName, BindingFlags binding, string message)
         {
-            return WithExceptionsCatched(() => 
+            return WithExceptionsCatched(() =>
                 {
                     var field_name = Marshal.PtrToStringUni(fieldName);
                     var field_info = type.GetField(field_name, binding);
@@ -224,7 +248,7 @@ namespace Rdnzl.Backend
                 });
         }
 
-        static void* setInstanceFieldValue(IntPtr fieldName, void* target, void* newValue)
+        public static void* setInstanceFieldValue(IntPtr fieldName, void* target, void* newValue)
         {
             var binding = BindingFlags.Instance | BindingFlags.Public;
             var message = "Instance field not found";
@@ -235,7 +259,7 @@ namespace Rdnzl.Backend
             return SetFieldValue(instance, type, new_value, fieldName, binding, message);
         }
 
-        static void* setStaticFieldValue(IntPtr fieldName, void* _type, void* newValue)
+        public static void* setStaticFieldValue(IntPtr fieldName, void* _type, void* newValue)
         {
             var binding = BindingFlags.Static | BindingFlags.Public;
             var message = "Static field not found";
@@ -245,7 +269,7 @@ namespace Rdnzl.Backend
             return SetFieldValue(null, type, new_value, fieldName, binding, message);
         }
 
-        static void* getInstanceFieldValueDirectly(void* fieldInfo, void* target)
+        public static void* getInstanceFieldValueDirectly(void* fieldInfo, void* target)
         {
             return WithExceptionsCatched(() =>
                 {
@@ -255,7 +279,7 @@ namespace Rdnzl.Backend
                 });
         }
 
-        static void* getStaticFieldValueDirectly(void* fieldInfo)
+        public static void* getStaticFieldValueDirectly(void* fieldInfo)
         {
             return WithExceptionsCatched(() =>
             {
@@ -264,7 +288,7 @@ namespace Rdnzl.Backend
             });
         }
 
-        static void* setInstanceFieldValueDirectly(void* fieldInfo, void* target, void* newValue)
+        public static void* setInstanceFieldValueDirectly(void* fieldInfo, void* target, void* newValue)
         {
             return WithExceptionsCatched(() =>
                 {
@@ -275,7 +299,7 @@ namespace Rdnzl.Backend
                 });
         }
 
-        static void* setStaticFieldValueDirectly(void* fieldInfo, void* newValue)
+        public static void* setStaticFieldValueDirectly(void* fieldInfo, void* newValue)
         {
             return WithExceptionsCatched(() =>
                 {
@@ -288,7 +312,7 @@ namespace Rdnzl.Backend
         #endregion
 
         #region Contructor invokations
-        static void* invokeConstructor(void *_type, int nargs, void*[] args)
+        public static void* invokeConstructor(void* _type, int nargs, void** args)
         {
             return WithExceptionsCatched(() =>
                 {
@@ -298,16 +322,16 @@ namespace Rdnzl.Backend
                 });
         }
 
-        private static object[] ToArray(int nargs, void*[] args)
+        private static object[] ToArray(int nargs, void** args)
         {
             return ToArray(nargs, args, 0);
         }
 
-        private static object[] ToArray(int nargs, void*[] args, int start)
+        private static object[] ToArray(int nargs, void** args, int start)
         {
             object[] real_args = new object[nargs - start];
             for (int i = start; i < nargs; ++i)
-                real_args[i] = FromPointer<DotNetContainer>(args[i]);
+                real_args[i] = FromPointer<DotNetContainer>(args[i]).Target;
             return real_args;
         }
 
@@ -315,7 +339,7 @@ namespace Rdnzl.Backend
 
         #region Properties
 
-        static object GetPropertyValue(object instance, Type type, IntPtr name, int nargs, void*[] args,
+        static object GetPropertyValue(object instance, Type type, IntPtr name, int nargs, void** args,
             BindingFlags binding, String message)
         {
             var Name = Marshal.PtrToStringUni(name);
@@ -328,7 +352,7 @@ namespace Rdnzl.Backend
             return info.GetValue(instance, ToArray(nargs, args));
         }
 
-        static void SetPropertyValue(object instance, Type type, IntPtr name, int nargs, void*[] args,
+        static void SetPropertyValue(object instance, Type type, IntPtr name, int nargs, void** args,
             BindingFlags binding, String message)
         {
             var Name = Marshal.PtrToStringUni(name);
@@ -338,12 +362,12 @@ namespace Rdnzl.Backend
                 throw new Exception(String.Format("{2}: {0}->{1}",
                     type.FullName, Name, message));
 
-            info.SetValue(instance, 
-                FromPointer<DotNetContainer>(args[0]).Target, 
+            info.SetValue(instance,
+                FromPointer<DotNetContainer>(args[0]).Target,
                 ToArray(nargs, args, 1));
         }
 
-        static void* getInstancePropertyValue(IntPtr propertyName, void* target, int nargs, void*[] args)
+        public static void* getInstancePropertyValue(IntPtr propertyName, void* target, int nargs, void** args)
         {
             return WithExceptionsCatched(() =>
                  {
@@ -353,99 +377,213 @@ namespace Rdnzl.Backend
                  });
         }
 
-         static  void *setInstancePropertyValue(IntPtr propertyName, void *target, int nargs, void*[] args)
-         {
-             return WithExceptionsCatched(() =>
-             {
-                 var container = FromPointer<DotNetContainer>(target);
-                 SetPropertyValue(container.Target, container.Type, propertyName, nargs, args,
-                     BindingFlags.Instance | BindingFlags.Public, "Instance property not found");
-             });
-         }
+        public static void* setInstancePropertyValue(IntPtr propertyName, void* target, int nargs, void** args)
+        {
+            return WithExceptionsCatched(() =>
+            {
+                var container = FromPointer<DotNetContainer>(target);
+                SetPropertyValue(container.Target, container.Type, propertyName, nargs, args,
+                    BindingFlags.Instance | BindingFlags.Public, "Instance property not found");
+            });
+        }
 
-         static void *getStaticPropertyValue(IntPtr propertyName, void *type, int nargs, void*[] args)
-         {
-             return WithExceptionsCatched(() =>
-             {
-                 var container = FromPointer<DotNetContainer>(type);
-                 return GetPropertyValue(null, (Type)container.Target, propertyName, nargs, args,
-                     BindingFlags.Static| BindingFlags.Public, "Static property not found");
-             });
-         }
+        public static void* getStaticPropertyValue(IntPtr propertyName, void* type, int nargs, void** args)
+        {
+            return WithExceptionsCatched(() =>
+            {
+                var container = FromPointer<DotNetContainer>(type);
+                return GetPropertyValue(null, (Type)container.Target, propertyName, nargs, args,
+                    BindingFlags.Static | BindingFlags.Public, "Static property not found");
+            });
+        }
 
-         static void *setStaticPropertyValue(IntPtr propertyName, void *type, int nargs, void*[] args)
-         {
-             return WithExceptionsCatched(() =>
-             {
-                 var container = FromPointer<DotNetContainer>(type);
-                 SetPropertyValue(null, (Type)container.Target, propertyName, nargs, args,
-                     BindingFlags.Static | BindingFlags.Public, "Static property not found");
-             });
-         }
+        public static void* setStaticPropertyValue(IntPtr propertyName, void* type, int nargs, void** args)
+        {
+            return WithExceptionsCatched(() =>
+            {
+                var container = FromPointer<DotNetContainer>(type);
+                SetPropertyValue(null, (Type)container.Target, propertyName, nargs, args,
+                    BindingFlags.Static | BindingFlags.Public, "Static property not found");
+            });
+        }
 
-         static void *getInstancePropertyValueDirectly(void *propertyInfo, int nargs, void*[] args)
-         {
-             return WithExceptionsCatched(() =>
-                 {
-                     var info = (PropertyInfo)FromPointer<DotNetContainer>(propertyInfo).Target;
-                     return info.GetValue(
-                         FromPointer<DotNetContainer>(args[0]).Target,
-                         ToArray(nargs, args, 1));
-                 });
-         }
+        public static void* getInstancePropertyValueDirectly(void* propertyInfo, int nargs, void** args)
+        {
+            return WithExceptionsCatched(() =>
+                {
+                    var info = (PropertyInfo)FromPointer<DotNetContainer>(propertyInfo).Target;
+                    return info.GetValue(
+                        FromPointer<DotNetContainer>(args[0]).Target,
+                        ToArray(nargs, args, 1));
+                });
+        }
 
-         static void *getStaticPropertyValueDirectly(void *propertyInfo, int nargs, void*[] args)
-         {
-             return WithExceptionsCatched(() =>
-             {
-                 var info = (PropertyInfo)FromPointer<DotNetContainer>(propertyInfo).Target;
-                 return info.GetValue(null, ToArray(nargs, args));
-             });
-         }
+        public static void* getStaticPropertyValueDirectly(void* propertyInfo, int nargs, void** args)
+        {
+            return WithExceptionsCatched(() =>
+            {
+                var info = (PropertyInfo)FromPointer<DotNetContainer>(propertyInfo).Target;
+                return info.GetValue(null, ToArray(nargs, args));
+            });
+        }
 
-         static void *setInstancePropertyValueDirectly(void *propertyInfo, int nargs, void*[] args)
-         {
-             return WithExceptionsCatched(() =>
-             {
-                 var info = (PropertyInfo)FromPointer<DotNetContainer>(propertyInfo).Target;
-                 info.SetValue(
-                     FromPointer<DotNetContainer>(args[0]).Target,
-                     FromPointer<DotNetContainer>(args[1]).Target,
-                     ToArray(nargs, args, 2));
-             });
-         }
+        public static void* setInstancePropertyValueDirectly(void* propertyInfo, int nargs, void** args)
+        {
+            return WithExceptionsCatched(() =>
+            {
+                var info = (PropertyInfo)FromPointer<DotNetContainer>(propertyInfo).Target;
+                info.SetValue(
+                    FromPointer<DotNetContainer>(args[0]).Target,
+                    FromPointer<DotNetContainer>(args[1]).Target,
+                    ToArray(nargs, args, 2));
+            });
+        }
 
-         static void *setStaticPropertyValueDirectly(void *propertyInfo, int nargs, void*[] args)
-         {
-             return WithExceptionsCatched(() =>
-             {
-                 var info = (PropertyInfo)FromPointer<DotNetContainer>(propertyInfo).Target;
-                 info.SetValue(null,
-                     FromPointer<DotNetContainer>(args[0]).Target,
-                     ToArray(nargs, args, 1));
-             });
-         }
+        public static void* setStaticPropertyValueDirectly(void* propertyInfo, int nargs, void** args)
+        {
+            return WithExceptionsCatched(() =>
+            {
+                var info = (PropertyInfo)FromPointer<DotNetContainer>(propertyInfo).Target;
+                info.SetValue(null,
+                    FromPointer<DotNetContainer>(args[0]).Target,
+                    ToArray(nargs, args, 1));
+            });
+        }
         #endregion
 
+        #region Members API
+        public static void* invokeInstanceMember(IntPtr methodName, void *target, int nargs, void** args)
+        {
+            return WithExceptionsCatched(() =>
+                {
+                    var container = FromPointer<DotNetContainer>(target);
+                    return InvokeMethod(container.Target, container.Type, methodName, nargs, args,
+                        "Instance method not found");
+                });
+        }
 
+        public static void* invokeInstanceMemberDirectly(void* methodInfo, int nargs, void** args)
+        {
+            return WithExceptionsCatched(() =>
+                {
+                    var info = (MethodInfo)FromPointer<DotNetContainer>(methodInfo).Target;
+                    return info.Invoke(
+                        FromPointer<DotNetContainer>(args[0]).Target,
+                        ToArray(nargs, args, 1));
+                });
+        }
+
+        public static void* invokeStaticMember(IntPtr methodName, void* _type, int nargs, void** args)
+        {
+            return WithExceptionsCatched(() =>
+            {
+                return InvokeMethod(null, (Type)FromPointer<DotNetContainer>(_type).Target,
+                    methodName, nargs, args, "Static method not found");
+            });
+        }
+
+        public static void* invokeStaticMemberDirectly(void* methodInfo, int nargs, void** args)
+        {
+            return WithExceptionsCatched(() =>
+            {
+                var info = (MethodInfo)FromPointer<DotNetContainer>(methodInfo).Target;
+                return info.Invoke(null, ToArray(nargs, args));
+            });
+        }
+
+        public static void* getArrayElement(void* ptr, int index)
+        {
+            try
+            {
+                var arr = (Array)FromPointer<DotNetContainer>(ptr).Target;
+                var eltype = arr.GetType().GetElementType();
+                return ToPointer(new InvokationResult(arr.GetValue(index), eltype, false));
+            }
+            catch (Exception e)
+            {
+                return ToPointer(new InvokationResult(e, true));
+            }
+        }
+
+        private static object InvokeMethod(object p, Type type,IntPtr methodName, int nargs,void** args,
+            string message)
+        {
+            var name = Marshal.PtrToStringUni(methodName);
+            var binding = BindingFlags.Instance | BindingFlags.Public;
+            var real_args = ToArray(nargs, args);
+            var arg_types = real_args.Select(x => x.GetType()).ToArray();
+ 	        var info = FindMethod(type, name, binding, arg_types);
+            if(info == null)
+                throw new Exception(ComposeMethodNotFound(message, type, name, arg_types));
+            return info.Invoke(p, real_args);
+        }
+
+        private static string ComposeMethodNotFound(string message, Type type, string name, Type[] arg_types)
+        {
+ 	        StringBuilder builder = new StringBuilder();
+            builder.AppendFormat("{0}: {1}::{2}(", message, type.FullName, name);
+            if(arg_types.Length > 0)
+            {
+                builder.Append(arg_types[0].FullName);
+                foreach(var argtype in arg_types.Skip(1))
+                {
+                    builder.Append(", ");
+                    builder.Append(argtype.FullName);
+                }
+            }
+            builder.Append(")");
+            return builder.ToString();
+        }
+
+        private static MethodInfo FindMethod(Type type, string methodName,BindingFlags binding,Type[] types)
+        {
+ 	        var info = type.GetMethod(methodName, binding, null, types, null);
+            if(info != null)
+                return info;
+
+            if(type.IsInterface)
+            {
+                info = FindInterfaceMethod(type, methodName, binding, types) ??
+                    FindMethod(typeof(object), methodName, binding, types);
+                if(info != null)
+                    return info;
+
+            }
+            return null;
+        }
+
+        private static MethodInfo FindInterfaceMethod(Type type, string methodName, BindingFlags binding, Type[] types)
+        {
+                foreach(var inf in type.GetInterfaces())
+                {
+                    var info = inf.GetMethod(methodName, binding, null, types, null) ??
+                        FindInterfaceMethod(inf, methodName, binding, types);
+
+                    if(info != null)
+                        return info;
+                }
+                return null;
+        }
+
+        #endregion
 
         #region InvokationResult API
-        static bool InvocationResultIsVoid(void* ptr)
+        public static bool InvocationResultIsVoid(void* ptr)
         {
             return FromPointer<InvokationResult>(ptr).IsVoid;
         }
 
-        static bool InvocationResultIsException(void* ptr)
+        public static bool InvocationResultIsException(void* ptr)
         {
             return FromPointer<InvokationResult>(ptr).IsException;
         }
 
-        static void* getDotNetContainerFromInvocationResult(void* ptr)
+        public static void* getDotNetContainerFromInvocationResult(void* ptr)
         {
             return ToPointer(FromPointer<InvokationResult>(ptr).Result);
         }
 
-        static void freeInvocationResult(void* ptr)
+        public static void freeInvocationResult(void* ptr)
         {
             freeDotNetContainer(ptr);
         }
@@ -513,7 +651,7 @@ namespace Rdnzl.Backend
             }
         }
 
-        static T FromPointer<T>(void* ptr) where T:class
+        static T FromPointer<T>(void* ptr) where T : class
         {
             var int_ptr = new IntPtr(ptr);
             var handle = GCHandle.FromIntPtr(int_ptr);
@@ -521,7 +659,7 @@ namespace Rdnzl.Backend
             return container;
         }
 
-        static void* ToPointer<T>(T container) where T:class
+        static void* ToPointer<T>(T container) where T : class
         {
             return GCHandle.Alloc(container).AddrOfPinnedObject().ToPointer();
         }

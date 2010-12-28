@@ -17,11 +17,11 @@ namespace Rdnzl.Backend
                 Handle = null;
 
             if (Type != null)
-                Type = type;
+                _Type = type;
             else if (o != null)
-                Type = o.GetType();
+                _Type = o.GetType();
             else
-                Type = null;
+                _Type = null;
         }
 
         public DotNetContainer(object o, Type type)
@@ -51,7 +51,18 @@ namespace Rdnzl.Backend
         public Type Type
         {
             get { return _Type; }
-            private set { _Type = value; }
+            internal set 
+            {
+                if (_Type == null || _Type.IsAssignableFrom(value))
+                {
+                    _Type = value;
+                }
+                else
+                {
+                    var new_target = Convert.ChangeType(Target, value);
+                    Init(new_target, value);
+                }
+            }
         }
 
         #region IDisposable Members
