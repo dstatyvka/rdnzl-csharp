@@ -461,8 +461,8 @@ namespace Rdnzl.Backend
             return WithExceptionsCatched(() =>
                 {
                     var container = FromPointer<DotNetContainer>(target);
-                    return InvokeMethod(container.Target, container.Type, methodName, nargs, args,
-                        "Instance method not found");
+                    return InvokeMethod(container.Target, container.Type, methodName, nargs, args, 
+                        "Instance method not found", BindingFlags.Instance | BindingFlags.Public);
                 });
         }
 
@@ -481,8 +481,9 @@ namespace Rdnzl.Backend
         {
             return WithExceptionsCatched(() =>
             {
-                return InvokeMethod(null, (Type)FromPointer<DotNetContainer>(_type).Target,
-                    methodName, nargs, args, "Static method not found");
+                return InvokeMethod(null, (Type)FromPointer<DotNetContainer>(_type).Target, 
+                    methodName, nargs, args, 
+                    "Static method not found", BindingFlags.Static | BindingFlags.Public);
             });
         }
 
@@ -509,15 +510,13 @@ namespace Rdnzl.Backend
             }
         }
 
-        private static object InvokeMethod(object p, Type type,IntPtr methodName, int nargs,void** args,
-            string message)
+        private static object InvokeMethod(object p, Type type, IntPtr methodName, int nargs, void** args, string message, BindingFlags binding)
         {
             var name = Marshal.PtrToStringUni(methodName);
-            var binding = BindingFlags.Instance | BindingFlags.Public;
             var real_args = ToArray(nargs, args);
             var arg_types = real_args.Select(x => x.GetType()).ToArray();
  	        var info = FindMethod(type, name, binding, arg_types);
-            if(info == null)
+            if (info == null)
                 throw new Exception(ComposeMethodNotFound(message, type, name, arg_types));
             return info.Invoke(p, real_args);
         }
@@ -541,7 +540,7 @@ namespace Rdnzl.Backend
 
         private static MethodInfo FindMethod(Type type, string methodName,BindingFlags binding,Type[] types)
         {
- 	        var info = type.GetMethod(methodName, binding, null, types, null);
+ 	        var info = type.GetMethod(methodName, binding, null, types, new ParameterModifier[0]);
             if(info != null)
                 return info;
 
