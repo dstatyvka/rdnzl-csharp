@@ -9,15 +9,17 @@ using System.Runtime.InteropServices;
 namespace Rdnzl.Backend
 {
     [Serializable]
-    class DelegateAdapter : IDisposable
+    public class DelegateAdapter : IDisposable
     {
         int indexInLisp;
-        void Init(int index)
+
+        // to be called from CL
+        public void init(int index)
         {
             indexInLisp = index;
         }
 
-        object invoke(object[] args)
+        public object invoke(object[] args)
         {
             if (Callback != null)
                 return Callback(indexInLisp, args);
@@ -94,7 +96,7 @@ namespace Rdnzl.Backend
             il.Emit(OpCodes.Call, typeof(DelegateAdapter).GetMethod("invoke"));
 
             // handle return value of "invoke"
-            if(return_type.Equals(typeof(void)))
+            if (return_type.Equals(typeof(void)))
                 il.Emit(OpCodes.Pop);
             else
                 il.Emit(OpCodes.Unbox_Any, return_type);
